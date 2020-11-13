@@ -1,0 +1,16 @@
+plugins {
+	id 'base'
+}
+
+task yarnInstall(type: Exec) {
+  commandLine 'yarn', 'install'
+}
+
+task yarnBuild(type: Exec) {
+  dependsOn("yarnInstall")
+  commandLine 'yarn', 'build'
+}
+
+assemble {
+  dependsOn("yarnBuild")
+}

@@ -1,0 +1,8 @@
+[Unit]
+Description=Movie Helper Service
+[Service]
+Type=simple
+ExecStart=/usr/bin/java -jar /opt/movie-helper/movie-helper.jar  --spring.config.location=/opt/movie-helper/config.properties
+
+[Install]
+WantedBy=multi-user.target

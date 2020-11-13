@@ -1,0 +1,21 @@
+plugins {
+	id 'base'
+}
+
+task prepareArchive(type: Copy) {
+  dependsOn(":backend:assemble")
+  from "../backend/build/libs/movie-helper.jar", "src/systemd/movie-helper.service", "src/bash/install.sh"
+  into "$buildDir/toArchive/movie-helper"
+}
+
+task packageDistribution(type: Zip) {
+    dependsOn("prepareArchive")
+    archiveFileName = "movie-helper.zip"
+    destinationDirectory = file("$buildDir/dist")
+
+    from "$buildDir/toArchive"
+}
+
+assemble {
+  dependsOn("packageDistribution")
+}

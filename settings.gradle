@@ -1,0 +1,4 @@
+rootProject.name = 'movie-helper'
+include 'backend'
+include 'frontend'
+include 'dist'
