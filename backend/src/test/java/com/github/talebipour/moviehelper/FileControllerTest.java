@@ -1,16 +1,27 @@
 package com.github.talebipour.moviehelper;
 
+import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_1_CONTENT;
+import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_1_NAME;
+import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_2_CONTENT;
+import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_2_NAME;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.talebipour.moviehelper.FileModel.FileType;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +29,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.FileSystemUtils;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class FileControllerTest {
@@ -39,6 +50,17 @@ class FileControllerTest {
     @BeforeAll
     public static void beforeAll() {
         System.setProperty("directory.path", rootDir.toAbsolutePath().toString());
+    }
+
+    @BeforeEach
+    void setup() throws IOException {
+        Files.walk(rootDir).filter(path -> !path.equals(rootDir)).forEach(path -> {
+            try {
+                FileSystemUtils.deleteRecursively(path);
+            } catch (IOException e) {
+                throw new AssertionError(e);
+            }
+        });
     }
 
     @Test
@@ -60,6 +82,7 @@ class FileControllerTest {
 
         assertEquals(HttpStatus.NOT_FOUND, getHttpStatus("notExists"));
     }
+
 
     @Test
     public void testListFileJail() {
@@ -94,10 +117,22 @@ class FileControllerTest {
         assertEquals("movie.1080", FileController.filenameWithoutExtension(filename));
     }
 
+    @Test
+    public void testDownloadSubtitle() throws IOException {
+        ResponseEntity<String> entity =
+                restTemplate.getForEntity("/download-subtitle?path=&url=" + restTemplate.getRootUri() +
+                                          "/sample-subtitle.zip", String.class);
+        assertTrue(entity.getStatusCode().is2xxSuccessful());
+        Set<String> files = Arrays.stream(entity.getBody().split("\n")).collect(Collectors.toSet());
+        assertEquals(new HashSet<>(asList(SUBTITLE_1_NAME, SUBTITLE_2_NAME)), files);
+        assertEquals(SUBTITLE_1_CONTENT, new String(Files.readAllBytes(rootDir.resolve(SUBTITLE_1_NAME))));
+        assertEquals(SUBTITLE_2_CONTENT, new String(Files.readAllBytes(rootDir.resolve(SUBTITLE_2_NAME))));
+    }
+
     private List<FileModel> listFiles(String path) {
         ResponseEntity<List<FileModel>> resp = restTemplate.exchange("/files/" + path, HttpMethod.GET, null,
-                                                                     new ParameterizedTypeReference<List<FileModel>>() {
-                                                                     });
+                new ParameterizedTypeReference<List<FileModel>>() {
+               });
         assertTrue(resp.getStatusCode().is2xxSuccessful());
         return resp.getBody();
     }
@@ -106,4 +141,5 @@ class FileControllerTest {
         ResponseEntity<String> responseEntity = restTemplate.getForEntity("/files/" + path, String.class);
         return responseEntity.getStatusCode();
     }
+
 }

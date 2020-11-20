@@ -3,6 +3,7 @@ package com.github.talebipour.moviehelper;
 import static java.util.Arrays.asList;
 
 import com.github.talebipour.moviehelper.FileModel.FileType;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -17,12 +18,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.client.RestTemplate;
 
 @Controller
 @CrossOrigin
@@ -53,7 +58,7 @@ public class FileController {
         }
     }.thenComparing(FileModel::getName);
 
-   public FileController(@Value("${directory.path}") String rootDir) {
+    public FileController(@Value("${directory.path}") String rootDir) {
         File dir = new File(rootDir);
         if (!dir.exists() || !dir.isDirectory()) {
             throw new IllegalArgumentException("Invalid directory: " + rootDir);
@@ -108,7 +113,7 @@ public class FileController {
 
     @PostMapping(value = "/reload-minidlna")
     public void reloadMiniDlna() throws IOException {
-       logger.info("Reloading MiniDLNA...");
+        logger.info("Reloading MiniDLNA...");
         Process process = new ProcessBuilder().command("systemctl", "force-reload", "minidlna").start();
         try {
             if (process.waitFor(15, TimeUnit.SECONDS)) {
@@ -124,6 +129,41 @@ public class FileController {
         } catch (InterruptedException e) {
             throw new InternalServerError("Interrupted while waiting for MiniDLNA force-reload", e);
         }
+    }
+
+    @GetMapping("/download-subtitle")
+    public ResponseEntity<String> downloadSubtitle(@RequestParam String url,
+            @RequestParam(required = false, defaultValue = "") String path) throws IOException {
+        logger.info("Downloading subtitle from {} into {}", url, path);
+        RestTemplate template = new RestTemplate();
+        ResponseEntity<byte[]> entity = template.getForEntity(url, byte[].class);
+        if (entity.getStatusCode().is2xxSuccessful()) {
+            try {
+                Set<String> files = saveSubtitles(entity.getBody(), path);
+                logger.info("Download subtitles: {} succeed.", files);
+                return ResponseEntity.ok(String.join("\n", files));
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+        return ResponseEntity.badRequest().body("Download failed, status code=" + entity.getStatusCode());
+    }
+
+    private Set<String> saveSubtitles(byte[] zipContent, String path) throws IOException {
+        ByteArrayInputStream bais = new ByteArrayInputStream(zipContent);
+        Path targetPath = rootDir.resolve(path);
+        HashSet<String> files = new HashSet<>();
+        try (ZipInputStream zis = new ZipInputStream(bais)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.getName().toLowerCase().endsWith(".srt")) {
+                    Files.write(targetPath.resolve(entry.getName()), IOUtils.toByteArray(zis));
+                    files.add(entry.getName());
+                }
+                zis.closeEntry();
+            }
+        }
+        return files;
     }
 
     static String extension(String filename) {
