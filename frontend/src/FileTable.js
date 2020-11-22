@@ -70,7 +70,9 @@ class FileTable extends Component {
 
 
   fetchFiles() {
-    const url = "/files/" + this.state.currentPath;
+
+    const url = (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "") +
+            "/files/" + this.state.currentPath;
     fetch(url)
       .then(
         (result) => result.json(),
