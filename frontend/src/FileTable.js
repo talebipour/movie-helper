@@ -20,6 +20,13 @@ import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import Paper from '@material-ui/core/Paper';
 
+import TextField from '@material-ui/core/TextField';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
+
 const KILO = 1024;
 const MEGA = KILO * 1024;
 const GIGA = MEGA * 1024;
@@ -48,6 +55,10 @@ function isSubtitle(filename) {
   return filename.match(subtitleRegex)
 }
 
+function apiUrl(path) {
+  return (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "") + path
+}
+
 class FileTable extends Component {
   state = {
     files: [],
@@ -55,7 +66,9 @@ class FileTable extends Component {
     selectedFiles: [],
     setSubtitleDisabled: true,
     filesChanged: false,
-    error: null
+    error: null,
+    dialogOpen: false,
+    subtitleUrl: ""
   }
 
   componentDidMount() {
@@ -70,10 +83,7 @@ class FileTable extends Component {
 
 
   fetchFiles() {
-
-    const url = (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "") +
-            "/files/" + this.state.currentPath;
-    fetch(url)
+    fetch(apiUrl("/files/" + this.state.currentPath))
       .then(
         (result) => result.json(),
         (error) => this.setState({error: error})
@@ -135,7 +145,7 @@ class FileTable extends Component {
       headers: { 'Content-Type': 'application/json' },
       body: null
     };
-    const url = "http://localhost:8080/set-subtitle?subtitle=" + subtitle + "&movie=" + movie
+    const url = apiUrl("/set-subtitle?subtitle=" + encodeURI(subtitle) + "&movie=" + encodeURI(movie))
     fetch(url, requestOptions).then(response => {this.setState({selectedFiles: [], filesChanged: true})})
   }
 
@@ -145,9 +155,20 @@ class FileTable extends Component {
       headers: { 'Content-Type': 'application/json' },
       body: null
     };
-    const url = "http://localhost:8080/reload-minidlna"
+    const url = apiUrl("/reload-minidlna")
     fetch(url, requestOptions);
   }
+
+
+  downloadSubtitle() {
+    this.setState({dialogOpen:false})
+    const url = apiUrl("/download-subtitle?url=" + encodeURI(this.state.subtitleUrl)
+        + "&path=" + encodeURI(this.state.currentPath))
+    fetch(url)
+      .then(response => this.setState({subtitleUrl: null, filesChanged: true}))
+      .catch(error => this.setState({error: "Downloading subtitle faield: " + error}))
+  }
+
 
   render() {
     const classes = makeStyles({
@@ -175,6 +196,36 @@ class FileTable extends Component {
         Reload MiniDLNA
         <CachedIcon />
       </Button>
+      <Button color="primary" onClick={() => this.setState({dialogOpen: true})}>
+        Download Subtitle
+        <SubtitlesIcon color="primary"/>
+      </Button>
+
+      <Dialog open={this.state.dialogOpen} aria-labelledby="form-dialog-title">
+        <DialogTitle id="form-dialog-title">Download Subtitle</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Enter URL to download subtitle for:
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="subtitleRule"
+            label="Subtitle URL"
+            type="email"
+            onChange={event => this.setState({subtitleUrl: event.target.value})}
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => this.setState({dialogOpen: false})} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={() => this.downloadSubtitle()} color="primary">
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
 
 
       <TableContainer color="primary" component={Paper}>
