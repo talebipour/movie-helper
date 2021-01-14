@@ -33,7 +33,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -53,15 +52,12 @@ public class FileController {
             "SM-G960F Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile Safari/537.36";
     private final Path rootDir;
 
-    private static final Comparator<FileModel> FILE_MODEL_COMPARATOR = new Comparator<FileModel>() {
-        @Override
-        public int compare(FileModel o1, FileModel o2) {
-            if (o1.getType() == o2.getType()) {
-                return 0;
-            }
-            return (o1.getType() == FileType.DIRECTORY) ? -1 : 1;
+    private static final Comparator<FileModel> FILE_MODEL_COMPARATOR = ((Comparator<FileModel>) (o1, o2) -> {
+        if (o1.getType() == o2.getType()) {
+            return 0;
         }
-    }.thenComparing(FileModel::getName);
+        return (o1.getType() == FileType.DIRECTORY) ? -1 : 1;
+    }).thenComparing(FileModel::getName);
 
     public FileController(@Value("${directory.path}") String rootDir) {
         File dir = new File(rootDir);
@@ -71,9 +67,9 @@ public class FileController {
         this.rootDir = dir.toPath();
     }
 
-    @GetMapping(value = {"/files/{path}", "/files/"}, produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/files", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<FileModel> listFilesAtPath(@PathVariable(value = "path", required = false) String path) throws IOException {
+    List<FileModel> listFilesAtPath(@RequestParam(value = "path", required = false) String path) throws IOException {
         logger.info("Listing files in path {}", path);
         try {
             Path target = resolvePath(path);

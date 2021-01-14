@@ -83,7 +83,7 @@ class FileTable extends Component {
 
 
   fetchFiles() {
-    fetch(apiUrl("/files/" + this.state.currentPath))
+    fetch(apiUrl("/files?path=" + encodeURI(this.state.currentPath)))
       .then(
         (result) => result.json(),
         (error) => this.setState({error: error})
@@ -107,8 +107,10 @@ class FileTable extends Component {
   }
 
   moveUp() {
+    const lastSlash = this.state.currentPath.lastIndexOf('/')
+    const newPath = lastSlash < 0 ? "" : this.state.currentPath.substring(0, lastSlash)
     this.setState({
-      currentPath: this.state.currentPath + "/.."
+      currentPath: newPath
     })
     this.fetchFiles()
   }

@@ -130,7 +130,7 @@ class FileControllerTest {
     }
 
     private List<FileModel> listFiles(String path) {
-        ResponseEntity<List<FileModel>> resp = restTemplate.exchange("/files/" + path, HttpMethod.GET, null,
+        ResponseEntity<List<FileModel>> resp = restTemplate.exchange("/files?path=" + path, HttpMethod.GET, null,
                 new ParameterizedTypeReference<List<FileModel>>() {
                });
         assertTrue(resp.getStatusCode().is2xxSuccessful());
@@ -138,7 +138,7 @@ class FileControllerTest {
     }
 
     private HttpStatus getHttpStatus(String path) {
-        ResponseEntity<String> responseEntity = restTemplate.getForEntity("/files/" + path, String.class);
+        ResponseEntity<String> responseEntity = restTemplate.getForEntity("/files?path=" + path, String.class);
         return responseEntity.getStatusCode();
     }
 
