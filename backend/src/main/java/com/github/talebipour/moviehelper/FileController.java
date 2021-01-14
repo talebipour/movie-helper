@@ -10,6 +10,7 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -162,9 +163,10 @@ public class FileController {
         try (ZipInputStream zis = new ZipInputStream(bais)) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
+                Path entryName = Paths.get(entry.getName());
                 if (entry.getName().toLowerCase().endsWith(".srt")) {
-                    Files.write(targetPath.resolve(entry.getName()), IOUtils.toByteArray(zis));
-                    files.add(entry.getName());
+                    Files.write(targetPath.resolve(entryName.getFileName()), IOUtils.toByteArray(zis));
+                    files.add(entryName.getFileName().toString());
                 }
                 zis.closeEntry();
             }
