@@ -2,9 +2,12 @@ package com.github.talebipour.moviehelper.controller;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -21,6 +24,8 @@ public class FileProviderController {
 
     static final String SUBTITLE_2_CONTENT = "sub2";
     static final String SUBTITLE_2_NAME = "sub2.srt";
+
+    static final int MOVIE_FILE_SIZE = 10_000_000;
 
     @GetMapping(value = "/sample-subtitle.zip", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @ResponseBody
@@ -40,6 +45,14 @@ public class FileProviderController {
         entry.setSize(bytes.length);
         zaos.putNextEntry(entry);
         zaos.write(bytes);
+    }
+
+    @GetMapping(value = "/movie.mkv", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    @ResponseBody
+    public Resource movie() throws IOException {
+        Path path = Files.createTempFile("sampleMovie", "mkv");
+        Files.write(path, new byte[MOVIE_FILE_SIZE]);
+        return new FileSystemResource(path);
     }
 
 }
