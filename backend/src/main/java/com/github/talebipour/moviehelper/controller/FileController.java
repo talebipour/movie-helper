@@ -1,8 +1,12 @@
-package com.github.talebipour.moviehelper;
+package com.github.talebipour.moviehelper.controller;
 
 import static java.util.Arrays.asList;
 
-import com.github.talebipour.moviehelper.FileModel.FileType;
+import com.github.talebipour.moviehelper.model.FileModel;
+import com.github.talebipour.moviehelper.model.FileModel.FileType;
+import com.github.talebipour.moviehelper.exception.InternalServerError;
+import com.github.talebipour.moviehelper.exception.InvalidInputException;
+import com.github.talebipour.moviehelper.exception.PathNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +32,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -37,7 +40,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
@@ -227,22 +229,4 @@ public class FileController {
     }
 
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public static class InvalidInputException extends RuntimeException {
-    }
-
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public static class PathNotFoundException extends RuntimeException {
-    }
-
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public static class InternalServerError extends RuntimeException {
-        public InternalServerError(String message) {
-            super(message);
-        }
-
-        public InternalServerError(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }

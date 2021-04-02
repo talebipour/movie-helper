@@ -1,4 +1,4 @@
-package com.github.talebipour.moviehelper;
+package com.github.talebipour.moviehelper.controller;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

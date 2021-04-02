@@ -1,16 +1,17 @@
-package com.github.talebipour.moviehelper;
+package com.github.talebipour.moviehelper.controller;
 
-import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_1_CONTENT;
-import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_1_NAME;
-import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_2_CONTENT;
-import static com.github.talebipour.moviehelper.SubtitleProviderController.SUBTITLE_2_NAME;
+import static com.github.talebipour.moviehelper.controller.SubtitleProviderController.SUBTITLE_1_CONTENT;
+import static com.github.talebipour.moviehelper.controller.SubtitleProviderController.SUBTITLE_1_NAME;
+import static com.github.talebipour.moviehelper.controller.SubtitleProviderController.SUBTITLE_2_CONTENT;
+import static com.github.talebipour.moviehelper.controller.SubtitleProviderController.SUBTITLE_2_NAME;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.github.talebipour.moviehelper.FileModel.FileType;
+import com.github.talebipour.moviehelper.model.FileModel;
+import com.github.talebipour.moviehelper.model.FileModel.FileType;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

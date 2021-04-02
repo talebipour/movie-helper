@@ -1,4 +1,4 @@
-package com.github.talebipour.moviehelper;
+package com.github.talebipour.moviehelper.model;
 
 import java.util.Objects;
 
