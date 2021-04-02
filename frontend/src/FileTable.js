@@ -165,7 +165,7 @@ class FileTable extends Component {
 
   downloadSubtitle() {
     this.setState({dialogOpen:false})
-    const url = apiUrl("/download-subtitle?url=" + encodeURI(this.state.subtitleUrl)
+    const url = apiUrl("/download/subtitle?url=" + encodeURI(this.state.subtitleUrl)
         + "&path=" + encodeURI(this.state.currentPath))
     fetch(url)
       .then(response => this.setState({subtitleUrl: null, filesChanged: true}))
