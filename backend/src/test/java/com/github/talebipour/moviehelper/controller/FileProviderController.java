@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-public class SubtitleProviderController {
+public class FileProviderController {
 
     static final String SUBTITLE_DIRECTORY = "subs";
 
