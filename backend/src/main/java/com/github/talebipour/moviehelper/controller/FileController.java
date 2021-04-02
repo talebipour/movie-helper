@@ -7,8 +7,8 @@ import com.github.talebipour.moviehelper.model.FileModel.FileType;
 import com.github.talebipour.moviehelper.exception.InternalServerError;
 import com.github.talebipour.moviehelper.exception.InvalidInputException;
 import com.github.talebipour.moviehelper.exception.PathNotFoundException;
+import com.github.talebipour.moviehelper.util.FileUtil;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -28,7 +27,7 @@ import java.util.zip.ZipInputStream;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -49,12 +48,12 @@ public class FileController {
 
     private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 
-    private static final Pattern EXTENSION_PATTERN = Pattern.compile("(.*)\\.(.*)$");
     private static final Pattern SUBTITLE_PATTERN = Pattern.compile(".*\\.srt(.\\d+)?$", Pattern.CASE_INSENSITIVE);
     private static final Set<String> MOVIE_EXTENSIONS = new HashSet<>(asList("mkv", "mp4"));
     private static final String SUBTITLE_DOWNLOAD_USER_AGENT = "Mozilla/5.0 (Linux; Android 8.0.0; " +
             "SM-G960F Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile Safari/537.36";
-    private final Path rootDir;
+
+    private final FileUtil fileUtil;
 
     private static final Comparator<FileModel> FILE_MODEL_COMPARATOR = ((Comparator<FileModel>) (o1, o2) -> {
         if (o1.getType() == o2.getType()) {
@@ -63,12 +62,9 @@ public class FileController {
         return (o1.getType() == FileType.DIRECTORY) ? -1 : 1;
     }).thenComparing(FileModel::getName);
 
-    public FileController(@Value("${directory.path}") String rootDir) {
-        File dir = new File(rootDir);
-        if (!dir.exists() || !dir.isDirectory()) {
-            throw new IllegalArgumentException("Invalid directory: " + rootDir);
-        }
-        this.rootDir = dir.toPath();
+    @Autowired
+    public FileController(FileUtil fileUtil) {
+        this.fileUtil = fileUtil;
     }
 
     @GetMapping(value = "/files", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -76,7 +72,7 @@ public class FileController {
     List<FileModel> listFilesAtPath(@RequestParam(value = "path", required = false) String path) throws IOException {
         logger.info("Listing files in path {}", path);
         try {
-            Path target = resolvePath(path);
+            Path target = fileUtil.resolvePath(path);
             return Files.walk(target, 1)
                     .filter(subPath -> !subPath.equals(target))
                     .map(this::toFileModel)
@@ -93,7 +89,7 @@ public class FileController {
         logger.info("Removing {} files.", paths);
         try {
           for (String path : paths) {
-            Path target = resolvePath(path);
+            Path target = fileUtil.resolvePath(path);
             Files.delete(target);
             logger.info("{} file removed.", path);
           }
@@ -105,16 +101,16 @@ public class FileController {
     @PostMapping(value = "/set-subtitle", produces = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody
     String setSubtitle(@RequestParam String subtitle, @RequestParam String movie) throws IOException {
-        Path subtitlePath = resolvePath(subtitle);
+        Path subtitlePath = fileUtil.resolvePath(subtitle);
         if (!SUBTITLE_PATTERN.matcher(subtitlePath.getFileName().toString()).matches()) {
             throw new InvalidInputException();
         }
-        Path moviePath = resolvePath(movie);
-        if (!MOVIE_EXTENSIONS.contains(extension(moviePath.getFileName().toString().toLowerCase()))) {
+        Path moviePath = fileUtil.resolvePath(movie);
+        if (!MOVIE_EXTENSIONS.contains(FileUtil.extension(moviePath.getFileName().toString().toLowerCase()))) {
             throw new InvalidInputException();
         }
 
-        String filename = filenameWithoutExtension(moviePath.getFileName().toString()) + ".srt";
+        String filename = FileUtil.filenameWithoutExtension(moviePath.getFileName().toString()) + ".srt";
         Path target = moviePath.resolveSibling(filename);
         if (Files.exists(target)) {
             Path backupFile;
@@ -176,7 +172,7 @@ public class FileController {
 
     private Set<String> saveSubtitles(byte[] zipContent, String path) throws IOException {
         ByteArrayInputStream bais = new ByteArrayInputStream(zipContent);
-        Path targetPath = rootDir.resolve(path);
+        Path targetPath = fileUtil.resolvePath(path);
         HashSet<String> files = new HashSet<>();
         try (ZipInputStream zis = new ZipInputStream(bais)) {
             ZipEntry entry;
@@ -192,33 +188,10 @@ public class FileController {
         return files;
     }
 
-    static String extension(String filename) {
-        Matcher matcher = EXTENSION_PATTERN.matcher(filename);
-        if (!matcher.matches()) {
-            throw new InvalidInputException();
-        }
-        return matcher.group(2);
-    }
-
-    static String filenameWithoutExtension(String filename) {
-        Matcher matcher = EXTENSION_PATTERN.matcher(filename);
-        if (!matcher.matches()) {
-            throw new InvalidInputException();
-        }
-        return matcher.group(1);
-    }
-
-    private Path resolvePath(String path) {
-        if (path != null && path.contains("..")) {
-            throw new InvalidInputException();
-        }
-        return path == null || path.isEmpty() ? rootDir : rootDir.resolve(path);
-    }
-
     private FileModel toFileModel(Path path) {
         FileModel model = new FileModel();
         model.setName(path.getFileName().toString());
-        model.setPath(rootDir.relativize(path).toString());
+        model.setPath(fileUtil.getRootDir().relativize(path).toString());
         model.setType(Files.isDirectory(path) ? FileType.DIRECTORY : FileType.REGULAR);
         try {
             model.setSize(Files.size(path));

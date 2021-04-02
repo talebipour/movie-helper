@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.talebipour.moviehelper.model.FileModel;
 import com.github.talebipour.moviehelper.model.FileModel.FileType;
+import com.github.talebipour.moviehelper.util.FileUtil;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,8 +115,8 @@ class FileControllerTest {
     @Test
     public void testExtensionAndFilename() {
         String filename = "movie.1080.mp4";
-        assertEquals("mp4", FileController.extension(filename));
-        assertEquals("movie.1080", FileController.filenameWithoutExtension(filename));
+        assertEquals("mp4", FileUtil.extension(filename));
+        assertEquals("movie.1080", FileUtil.filenameWithoutExtension(filename));
     }
 
     @Test
