@@ -31,16 +31,17 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-@Controller
+@RestController
 @CrossOrigin
 public class FileController {
 
@@ -79,6 +80,21 @@ public class FileController {
                     .map(this::toFileModel)
                     .sorted(FILE_MODEL_COMPARATOR)
                     .collect(Collectors.toList());
+        } catch (NoSuchFileException e) {
+            throw new PathNotFoundException();
+        }
+    }
+
+
+    @DeleteMapping("/files")
+    public void deleteFiles(@RequestParam(value = "path", required = false) List<String> paths) throws IOException {
+        logger.info("Removing {} files.", paths);
+        try {
+          for (String path : paths) {
+            Path target = resolvePath(path);
+            Files.delete(target);
+            logger.info("{} file removed.", path);
+          }
         } catch (NoSuchFileException e) {
             throw new PathNotFoundException();
         }
@@ -143,7 +159,7 @@ public class FileController {
         HttpEntity<String> requestEntity = new HttpEntity<>(headers);
 
         ResponseEntity<byte[]> entity = template.exchange(url, HttpMethod.GET, requestEntity, byte[].class);
-        
+
         if (entity.getStatusCode().is2xxSuccessful()) {
             try {
                 Set<String> files = saveSubtitles(entity.getBody(), path);

@@ -4,6 +4,7 @@ import Button from '@material-ui/core/Button';
 import { makeStyles } from '@material-ui/core/styles';
 import Checkbox from '@material-ui/core/Checkbox';
 
+import DeleteIcon from '@material-ui/icons/Delete';
 import FolderIcon from '@material-ui/icons/Folder';
 import ArrowUpwardIcon from '@material-ui/icons/ArrowUpward';
 import MovieIcon from '@material-ui/icons/Movie';
@@ -171,6 +172,15 @@ class FileTable extends Component {
       .catch(error => this.setState({error: "Downloading subtitle faield: " + error}))
   }
 
+  deleteFiles() {
+    const requestOptions = {
+      method: 'DELETE',
+      body: null
+    };
+    var url = "/files?"
+    this.state.selectedFiles.forEach(file => url += "path=" + encodeURI(file) + "&");
+    fetch(apiUrl(url), requestOptions).then(response => {this.setState({selectedFiles: [], filesChanged: true})})
+  }
 
   render() {
     const classes = makeStyles({
@@ -201,6 +211,9 @@ class FileTable extends Component {
       <Button color="primary" onClick={() => this.setState({dialogOpen: true})}>
         Download Subtitle
         <SubtitlesIcon color="primary"/>
+      </Button>
+      <Button color="primary" disabled={this.state.selectedFiles.length == 0} onClick={() => this.deleteFiles()}>
+        <DeleteIcon color="primary"/> 
       </Button>
 
       <Dialog open={this.state.dialogOpen} aria-labelledby="form-dialog-title">
@@ -244,9 +257,7 @@ class FileTable extends Component {
             {this.state.files.map((file) => (
               <TableRow key={file.name}>
                 <TableCell width="10px">
-                  {file.type === "REGULAR" && (isVideo(file.name) || isSubtitle(file.name)) &&
-                      <Checkbox checked={this.state.selectedFiles.indexOf(file.path) >= 0} onChange={(event) => this.setFileSelected(file, event.target.checked)} />
-                  }
+                  <Checkbox checked={this.state.selectedFiles.indexOf(file.path) >= 0} onChange={(event) => this.setFileSelected(file, event.target.checked)} />
                 </TableCell>
                 <TableCell width="10px">
                   {file.type === "DIRECTORY" &&

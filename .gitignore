@@ -32,3 +32,11 @@ hs_err_pid*
 
 # NodeJS
 **/node_modules/
+
+### vscode ###
+.vscode
+*.code-workspace
+.project
+.classpath
+.settings
+bin

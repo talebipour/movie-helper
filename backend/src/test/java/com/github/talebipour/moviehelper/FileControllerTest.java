@@ -129,6 +129,15 @@ class FileControllerTest {
         assertEquals(SUBTITLE_2_CONTENT, new String(Files.readAllBytes(rootDir.resolve(SUBTITLE_2_NAME))));
     }
 
+    @Test
+    public void testDelete() throws IOException {
+      Path file = Files.createFile(rootDir.resolve("delete-test-file"));
+      Path dir = Files.createDirectories(rootDir.resolve("delete-test-dir"));
+      restTemplate.delete("/files?path=" + file.getFileName().toString() + "&path=" + dir.getFileName().toString());
+      assertFalse(Files.exists(file));
+      assertFalse(Files.exists(dir));
+    }
+
     private List<FileModel> listFiles(String path) {
         ResponseEntity<List<FileModel>> resp = restTemplate.exchange("/files?path=" + path, HttpMethod.GET, null,
                 new ParameterizedTypeReference<List<FileModel>>() {
