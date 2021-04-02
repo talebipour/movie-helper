@@ -15,7 +15,6 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
@@ -66,7 +65,7 @@ public class Downloader {
                 .GET()
                 .build();
         HttpResponse<byte[]> response = client.send(request, BodyHandlers.ofByteArray());
-        if (!isSuccessful(response.statusCode())) {
+        if (isNotSuccessful(response.statusCode())) {
             throw new InvalidInputException();
         }
         Set<String> files = saveSubtitles(response.body(), path);
@@ -74,9 +73,9 @@ public class Downloader {
         return files;
     }
 
-    private boolean isSuccessful(int statusCode) {
+    private static boolean isNotSuccessful(int statusCode) {
         HttpStatus status = HttpStatus.resolve(statusCode);
-        return status != null && status.is2xxSuccessful();
+        return status == null || !status.is2xxSuccessful();
     }
 
     private Set<String> saveSubtitles(byte[] zipContent, Path path) throws IOException {
@@ -114,6 +113,7 @@ public class Downloader {
     }
 
     private void findFileInfo(DownloadStatus status) throws IOException, InterruptedException {
+        logger.info("Finding file info of {}", status.getUrl());
         URI uri = URI.create(status.getUrl());
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
@@ -121,31 +121,25 @@ public class Downloader {
                 .GET()
                 .build();
         HttpResponse<Void> response = client.send(request, BodyHandlers.discarding());
-        if (!isSuccessful(response.statusCode())) {
+        if (isNotSuccessful(response.statusCode())) {
             throw new InvalidInputException();
         }
 
-        status.getFile().setName(findFilename(response.headers().allValues(HttpHeaders.CONTENT_DISPOSITION))
+        FileModel file = status.getFile();
+        file.setName(findFilename(response.headers().allValues(HttpHeaders.CONTENT_DISPOSITION))
                              .orElse(uri.getPath().substring(1)));
 
-        status.getFile().setSize(findFileSize(response));
-//        status.setRangeSupported(response.statusCode() == HttpStatus.PARTIAL_CONTENT.value());
-        status.setRangeSupported(false);
-    }
-
-    private long findFileSize(HttpResponse<Void> response) {
         if (response.statusCode() == HttpStatus.PARTIAL_CONTENT.value()) {
-            Optional<String> contentRange = response.headers().firstValue(HttpHeaders.CONTENT_RANGE);
-            if (!contentRange.isPresent()) {
-                throw new InvalidInputException("Content-Range header not found.");
-            }
-            int slashPos = contentRange.get().indexOf("/");
+            String contentRange = response.headers().firstValue(HttpHeaders.CONTENT_RANGE)
+                    .orElseThrow(() -> new InvalidInputException("Content-Range header not found."));
+
+            int slashPos = contentRange.indexOf("/");
             if (slashPos >= 0) {
-                return Long.parseLong(contentRange.get().substring(slashPos + 1));
+                file.setSize(Long.parseLong(contentRange.substring(slashPos + 1)));
+                status.setRangeSupported(true);
             }
-            return -1;
         } else {
-            return response.headers().firstValueAsLong(HttpHeaders.CONTENT_LENGTH).orElse(-1);
+            file.setSize(response.headers().firstValueAsLong(HttpHeaders.CONTENT_LENGTH).orElse(-1));
         }
     }
 
@@ -160,34 +154,38 @@ public class Downloader {
     }
 
     private void startDownload(DownloadStatus status) {
-        if (status.isRangeSupported()) {
-            //TODO: Complete
-        } else {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(status.getUrl()))
-                    .GET()
-                    .build();
-            CompletableFuture<HttpResponse<Path>> future = client.sendAsync(request,
-                    BodyHandlers.ofFile(downloadPath(status.getFile())));
-            future.whenComplete((pathHttpResponse, throwable) -> {
-                if (throwable == null) {
-                    status.setStatus(Status.COMPLETED);
-                } else {
-                    logger.error("Downloading {} failed. {}", status.getUrl(), throwable.getMessage());
-                    status.setStatus(Status.FAILED);
-                    status.setMessage(throwable.getMessage());
-                }
-            });
-        }
+        status.setStatus(Status.IN_PROGRESS);
+        // TODO: Download files by chunk using Range header
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(status.getUrl()))
+                .GET()
+                .build();
+        Path downloadPath = downloadPath(status.getFile());
+        // Set filename again based on output file.
+        status.getFile().setName(downloadPath.getFileName().toString());
+        logger.info("Start downloading {} into {}", status, downloadPath);
+        CompletableFuture<HttpResponse<Path>> future = client.sendAsync(request, BodyHandlers.ofFile(downloadPath));
+        future.whenComplete((pathHttpResponse, throwable) -> {
+            if (throwable == null) {
+                logger.info("Downloading {} finished.", status.getUrl());
+                status.setProgressPercent(100);
+                status.setStatus(Status.COMPLETED);
+            } else {
+                logger.error("Downloading {} failed. {}", status.getUrl(), throwable.getMessage());
+                status.setStatus(Status.FAILED);
+                status.setMessage(throwable.getMessage());
+            }
+        });
     }
 
     private Path downloadPath(FileModel file) {
-        Path path;
-        int i = 1;
-        do {
-            path = fileUtil.resolvePath(file.getPath()).resolve(file.getName() + (i == 1 ? "" : "." + i));
+        Path path = fileUtil.resolvePath(file.getPath()).resolve(file.getName());
+        int i = 2;
+        while (Files.exists(path)) {
+            logger.warn("{} file already exists.", path);
+            path = fileUtil.resolvePath(file.getPath()).resolve(file.getName() + "." + i);
             i++;
-        } while (Files.exists(path));
+        }
         return path;
     }
 

@@ -8,11 +8,11 @@ public class DownloadStatus {
 
     private FileModel file;
 
-    private Status status;
+    private volatile Status status;
 
     private boolean rangeSupported;
 
-    private int progressPercent;
+    private volatile int progressPercent;
 
     private String message;
 

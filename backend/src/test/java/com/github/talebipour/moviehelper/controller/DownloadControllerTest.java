@@ -9,6 +9,7 @@ import static java.util.Arrays.asList;
 import static org.awaitility.Awaitility.waitAtMost;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.talebipour.moviehelper.model.DownloadStatus;
@@ -84,10 +85,13 @@ class DownloadControllerTest {
             assertEquals(1, lastStatusEntity.getBody().size());
             DownloadStatus lastStatus = lastStatusEntity.getBody().get(0);
             assertEquals(Status.COMPLETED, lastStatus.getStatus());
+            assertEquals(100, lastStatus.getProgressPercent());
         });
         Path downloadedFilePath = rootDir.resolve(filename);
         assertTrue(Files.exists(downloadedFilePath));
         assertEquals(MOVIE_FILE_SIZE, Files.size(downloadedFilePath));
+        assertNull(status.getMessage());
+        Files.delete(downloadedFilePath);
     }
 
     private ResponseEntity<List<DownloadStatus>> getLastStatus(String url) {
