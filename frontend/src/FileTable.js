@@ -148,7 +148,7 @@ class FileTable extends Component {
       headers: { 'Content-Type': 'application/json' },
       body: null
     };
-    const url = apiUrl("/set-subtitle?subtitle=" + encodeURI(subtitle) + "&movie=" + encodeURI(movie))
+    const url = apiUrl("/set-subtitle/signle?subtitle=" + encodeURI(subtitle) + "&movie=" + encodeURI(movie))
     fetch(url, requestOptions).then(response => {this.setState({selectedFiles: [], filesChanged: true})})
   }
 

@@ -10,14 +10,18 @@ import com.github.talebipour.moviehelper.model.FileModel.FileType;
 import com.github.talebipour.moviehelper.util.FileUtil;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -87,9 +91,9 @@ public class FileController {
         }
     }
 
-    @PostMapping(value = "/set-subtitle", produces = MediaType.TEXT_PLAIN_VALUE)
+    @PostMapping(value = "/set-subtitle/single", produces = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody
-    String setSubtitle(@RequestParam String subtitle, @RequestParam String movie) throws IOException {
+    String setSubtitleSingle(@RequestParam String subtitle, @RequestParam String movie) throws IOException {
         Path subtitlePath = fileUtil.resolvePath(subtitle);
         if (!SUBTITLE_PATTERN.matcher(subtitlePath.getFileName().toString()).matches()) {
             throw new InvalidInputException();
@@ -99,6 +103,56 @@ public class FileController {
             throw new InvalidInputException();
         }
 
+        return doSetSubtitle(subtitlePath, moviePath);
+    }
+
+    @PostMapping(value = "/set-subtitle/bulk", produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody
+    List<List<FileModel>> setSubtitleBulk(@RequestParam(value = "path", required = false) String path,
+                                 @RequestParam String movieRegex, @RequestParam String subtitleRegex)
+            throws IOException {
+        List<List<FileModel>> result = new ArrayList<>();
+        Pattern moviePattern = Pattern.compile(movieRegex, Pattern.CASE_INSENSITIVE);
+        try {
+            Path target = fileUtil.resolvePath(path);
+            Files.list(target).forEach(moviePath -> {
+                Matcher matcher = moviePattern.matcher(moviePath.getFileName().toString());
+                String replacedSubtitleRegex = subtitleRegex;
+                if (matcher.matches()) {
+                    for (int i = 0; i <= matcher.groupCount(); i++) {
+                        replacedSubtitleRegex = replacedSubtitleRegex.replace("$" + i, Pattern.quote(matcher.group(i)));
+                    }
+                }
+                Predicate<String> subtitlePredicate = Pattern.compile(replacedSubtitleRegex, Pattern.CASE_INSENSITIVE)
+                        .asMatchPredicate();
+                List<Path> subtitles;
+                try {
+                    subtitles = Files.list(target)
+                            .filter(filePath -> subtitlePredicate.test(filePath.getFileName().toString()))
+                            .collect(Collectors.toList());
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                if (subtitles.size() > 1) {
+                    throw new InvalidInputException("Subtitle regex result is not unique.");
+                }
+                if (!subtitles.isEmpty()) {
+                    try {
+                        doSetSubtitle(subtitles.get(0), moviePath);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                    result.add(List.of(toFileModel(moviePath), toFileModel(subtitles.get(0))));
+                }
+            });
+        } catch (NoSuchFileException e) {
+            throw new PathNotFoundException();
+        }
+        return result;
+    }
+
+
+    private String doSetSubtitle(Path subtitlePath, Path moviePath) throws IOException {
         String filename = FileUtil.filenameWithoutExtension(moviePath.getFileName().toString()) + ".srt";
         Path target = moviePath.resolveSibling(filename);
         if (Files.exists(target)) {

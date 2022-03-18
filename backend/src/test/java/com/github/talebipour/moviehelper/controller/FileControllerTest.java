@@ -4,6 +4,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.talebipour.moviehelper.model.FileModel;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -84,10 +86,10 @@ class FileControllerTest {
     }
 
     @Test
-    public void testSetSubtitle() throws IOException {
+    public void testSetSubtitleSingle() throws IOException {
         Files.createFile(rootDir.resolve("movie.mkv"));
         Files.createFile(rootDir.resolve("subtitle.srt"));
-        String url = "/set-subtitle?subtitle=subtitle.srt&movie=movie.mkv";
+        String url = "/set-subtitle/single?subtitle=subtitle.srt&movie=movie.mkv";
         Path subtitlePath = rootDir.resolve("movie.srt");
         assertFalse(Files.exists(subtitlePath));
         ResponseEntity<String> response = restTemplate.postForEntity(url, null, String.class);
@@ -102,6 +104,32 @@ class FileControllerTest {
         assertTrue(response.getStatusCode().is2xxSuccessful());
         assertTrue(Files.isRegularFile(backupSubtitlePath));
         assertEquals(subContent, new String(Files.readAllBytes(subtitlePath)));
+    }
+
+    @Test
+    public void testSetSubtitleBulk() throws IOException {
+        Path seriesDir = rootDir.resolve("someSeries");
+        Files.createDirectories(seriesDir);
+        String movie1Name = "seriesName.site.s03e04.BlueRay";
+        Files.createFile(seriesDir.resolve(movie1Name + ".mkv"));
+        String movie2Name = "seriesName.site.s03e05.BlueRay";
+        Files.createFile(seriesDir.resolve(movie2Name + ".mkv"));
+        String movie1SubContent = "S03E04";
+        Files.write(seriesDir.resolve("subtitleName.site.S03E04.BlueRay.srt"), movie1SubContent.getBytes());
+        String movie2SubContent = "S03E05";
+        Files.write(seriesDir.resolve("subtitleName.site.S03E05.BlueRay.srt"), movie2SubContent.getBytes());
+
+        String movieRegex = "^seriesName.*s(\\d+)e(\\d+).*\\.mkv$";
+        String subtitleRegex = "^subtitleName.*s$1e$2.*BlueRay\\.srt$";
+        String url = String.format("/set-subtitle/bulk?path=someSeries&movieRegex=%s&subtitleRegex=%s", movieRegex,
+                                   subtitleRegex);
+        ResponseEntity<List<List<FileModel>>> response = restTemplate.exchange(url, HttpMethod.POST, HttpEntity.EMPTY,
+                                                                              new ParameterizedTypeReference<>() {});
+        assertTrue(response.getStatusCode().is2xxSuccessful());
+        assertNotNull(response.getBody());
+        assertEquals(2, response.getBody().size());
+        assertEquals(movie1SubContent, Files.readString(seriesDir.resolve(movie1Name + ".srt")));
+        assertEquals(movie2SubContent, Files.readString(seriesDir.resolve(movie2Name + ".srt")));
     }
 
     @Test
