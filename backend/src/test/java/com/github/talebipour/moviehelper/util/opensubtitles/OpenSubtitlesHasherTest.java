@@ -11,7 +11,8 @@ class OpenSubtitlesHasherTest {
 
     @Test
     void computeHashFile() throws Exception {
-        String hash = computeHash(new File("src/test/resources/sample-mp4-file-small.mp4"));
+//        String hash = computeHash(new File("src/test/resources/sample-mp4-file-small.mp4"));
+        String hash = computeHash(new File("/tmp/Your.Name.2016.Bluray.720p.MkvCage.mkv"));
         assertEquals(16, hash.length());
         System.out.println(hash);
     }

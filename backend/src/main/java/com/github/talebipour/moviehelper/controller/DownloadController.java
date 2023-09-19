@@ -2,6 +2,8 @@ package com.github.talebipour.moviehelper.controller;
 
 import com.github.talebipour.moviehelper.exception.InternalServerError;
 import com.github.talebipour.moviehelper.model.DownloadStatus;
+import com.github.talebipour.moviehelper.model.FileModel;
+import com.github.talebipour.moviehelper.model.Subtitle;
 import com.github.talebipour.moviehelper.util.Downloader;
 import com.github.talebipour.moviehelper.util.FileUtil;
 import java.io.IOException;
@@ -66,5 +68,10 @@ public class DownloadController {
         }
         Optional<DownloadStatus> status = downloader.getDownloadStatus(url);
         return status.map(List::of).orElse(Collections.emptyList());
+    }
+
+    @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<Subtitle> searchSubtitleForFile(@RequestParam String file) {
+        return null;
     }
 }
